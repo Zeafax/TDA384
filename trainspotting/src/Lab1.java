@@ -1,16 +1,19 @@
-import java.util.HashMap;
+import TSim.*;
 import java.util.concurrent.Semaphore;
 
-import TSim.*;
-
 public class Lab1 {
+  Semaphore semA = new Semaphore(1);
+  Semaphore semB = new Semaphore(1);
+  Semaphore semC = new Semaphore(1);
+  Semaphore semD = new Semaphore(1);
+  Semaphore semE = new Semaphore(1);
+  Semaphore semF = new Semaphore(1);
 
   public Lab1(int speed1, int speed2) {
-    SemaphoreManager SemMan = new SemaphoreManager();
     TSimInterface tsi = TSimInterface.getInstance();
     
-    TrainBrain tb1 = new TrainBrain(SemMan,tsi,1,speed1,"NORTH");
-    TrainBrain tb2 = new TrainBrain(SemMan,tsi,2,speed2, "SOUTH");
+    TrainBrain tb1 = new TrainBrain(tsi,1,speed1);
+    TrainBrain tb2 = new TrainBrain(tsi,2,speed2);
 
     Thread t1 = new Thread(tb1);
     Thread t2 = new Thread(tb2);
@@ -22,138 +25,119 @@ public class Lab1 {
     int tId, trainSpeed;
     
     TSimInterface tsi;
-    SemaphoreManager semMan;
     String lastStation;
 
-    static final String[] sensors = {"16,3","8,6","16,5","7,7","8,8","9,7","16,7","17,8","18,7","3,9","4,10","5,9","14,9","15,10","16,9","2,11","4,1","16,11","3,12","16,13"};
+    static final String[] sensors = {"16,3","8,6","16,5","7,7","8,8","9,7","16,7","17,8","18,7","3,9","4,10","5,9","14,9","15,10","16,9","2,11","4,11","16,11","3,12","16,13"};
     static final int ACTIVE = 0x01;
 	  static final int INACTIVE = 0x02; 
 
-    TrainBrain(SemaphoreManager semMan, TSimInterface tsi, int tId, int trainSpeed, String lastStation){
-      this.semMan = semMan;
+    TrainBrain(TSimInterface tsi, int tId, int trainSpeed){
       this.tsi = tsi;
       this.tId = tId;
       this.trainSpeed = trainSpeed;
-      this.lastStation = lastStation;
     }
 
     public void run(){
-      //Initial information--------------------------------//
-        System.out.println("tId: "+this.tId);
-        System.out.println(Thread.currentThread().getName()
-                         + ", executing run() method!");
-      //---------------------------------------------------//
-    switch (tId){
-      case 1: 
-        try {
-          semMan.semA.acquire();
-        }
-        catch (Exception e) {
-          e.printStackTrace();    // or only e.getMessage() for the error
-          System.exit(1);
-        }
-        break;
-      case 2: 
-        try {
-          semMan.semF.acquire();
-        }
-        catch (Exception e) {
-          e.printStackTrace();    // or only e.getMessage() for the error
-          System.exit(1);
-        }
-        break;
-    }
-    try {
-      tsi.setSpeed(tId,trainSpeed);
-    }
-    catch (Exception e) {
-      e.printStackTrace();    // or only e.getMessage() for the error
-      System.exit(1);
-    }
-    
-
-    while (true){
-      SensorEvent sEvent = null;
       try {
-        sEvent = tsi.getSensor(tId);
-      } catch (Exception e) {
-        // TODO: handle exception
-        e.printStackTrace();    // or only e.getMessage() for the error
-        System.exit(1);
-      }
-      if (sEvent.getStatus() == INACTIVE) continue;
-      String sensor_string = sEvent.getXpos()+","+sEvent.getYpos();
-      int sensor_pos;
-      for (int i = 0; i <sensors.length; i++){
-        if (sensors[i] == sensor_string){sensor_pos = i;}
-       }
+        //Initial information--------------------------------//
+          System.out.println("tId: "+this.tId);
+          System.out.println(Thread.currentThread().getName()
+                          + ", executing run() method!");
+        //---------------------------------------------------//
+        switch (tId){
+          case 1 -> {
+              semA.acquire();
+              System.out.println(semA);
+              lastStation = "NORTH";
+              }
+          case 2 -> {
+              semF.acquire();
+              lastStation = "SOUTH";
+              System.out.println(semF);
+              }
+        }
+        tsi.setSpeed(tId,trainSpeed);
 
-      switch (sensor_pos) {
-        case 0:
-          
-          break;
-      
-        default:
-          break;
-      }
-
-      if ( sensor_pos == sensors[0]&& sEvent.getStatus() == ACTIVE){ // Train at sensor A
-        switch (this.lastStation) {
-          case "NORTH":
-            break;
-          case "SOUTH":
-          try {
-            tsi.setSpeed(tId, 0);
-            wait(1000 + 20*Math.abs(this.trainSpeed));
-            this.lastStation = "NORTH" ;
-            this.trainSpeed = -this.trainSpeed;
-            tsi.setSpeed(tId, trainSpeed);
-          } catch (Exception e) {
-            // TODO: handle exception
-            e.printStackTrace();    // or only e.getMessage() for the error
-            System.exit(1);
+        while (true){
+          SensorEvent sEvent;
+          sEvent = tsi.getSensor(tId);
+          if (sEvent.getStatus() == INACTIVE) {continue;}
+          String sensor_string = sEvent.getXpos()+","+sEvent.getYpos();
+          int sensor_pos = -1;
+          System.out.println("Sensor string: "+sensor_string);
+          for (int i = 0; i <sensors.length; i++){
+            if (sensors[i].equals(sensor_string)){sensor_pos = i;}
           }
-            break;
-          default:
-            System.err.println("NO LAST STATION");
-            System.exit(1);
+          System.out.println("sensor_pos: "+sensor_pos);
+          switch (sensor_pos) {
+            case 0, 2 -> this.waitStation();
+            case 1, 3, 4, 5 -> this.handleJunction(semB,semB,0,0,0,"NORTH",false);
+            case 6, 7 -> this.handleJunction(semC,semA,Swiches.A.getX(),Swiches.A.getY(),TSimInterface.SWITCH_RIGHT,"NORTH",false);
+            case 8 -> this.handleJunction(semA,semC,Swiches.A.getX(),Swiches.A.getY(),TSimInterface.SWITCH_RIGHT,"SOUTH",true);
+            case 9 -> this.handleJunction(semD,semE,Swiches.C.getX(),Swiches.C.getY(),TSimInterface.SWITCH_LEFT,"SOUTH",true);
+            case 10, 11 -> this.handleJunction(semE,semD,Swiches.C.getX(),Swiches.C.getY(),TSimInterface.SWITCH_LEFT,"NORTH",false);
+            case 12, 13 -> this.handleJunction(semC,semD,Swiches.B.getX(),Swiches.B.getY(),TSimInterface.SWITCH_RIGHT,"SOUTH",false);
+            case 14 -> this.handleJunction(semD,semC,Swiches.B.getX(),Swiches.B.getY(),TSimInterface.SWITCH_RIGHT,"NORTH",true);
+            case 15 -> this.handleJunction(semF,semE,Swiches.D.getX(),Swiches.D.getY(),TSimInterface.SWITCH_LEFT,"NORTH",true);
+            case 16, 18 -> this.handleJunction(semE,semF,Swiches.D.getX(),Swiches.D.getY(),TSimInterface.SWITCH_LEFT,"SOUTH",false);
+            case 17, 19 -> this.waitStation();
+            default -> System.out.println("Sensor: "+sensor_pos+" not detected");
+          }
         }
-      }
-
-      if (sEvent.getXpos() == 14 && sEvent.getYpos() == 3 && sEvent.getStatus() == ACTIVE){ // Train at sensor B
-        System.out.println("Sensor: A, Train: "+tId);
-        continue;
-      }
-    }
-    }
-    private void waitStation(){
-      try {
-        tsi.setSpeed(tId, 0);
-        wait(1000 + 20*Math.abs(this.trainSpeed));
-        this.lastStation = (this.lastStation =="NORTH") ? "SOUTH":"NORTH";
-        this.trainSpeed = -this.trainSpeed; // TODO: Mellanvariable?
-        tsi.setSpeed(tId, trainSpeed);
-      } catch (Exception e) {
-        // TODO: handle exception
+      }catch (Exception e) {
+      // TODO: handle exception
         e.printStackTrace();    // or only e.getMessage() for the error
         System.exit(1);
       }
+    
+ 
+  }
+
+  private void waitStation() throws Exception{
+    tsi.setSpeed(tId, 0);
+    wait(1000 + 20*Math.abs(this.trainSpeed));
+    int newspeed = -this.trainSpeed;
+    this.trainSpeed = newspeed; // TODO: Mellanvariable?
+    tsi.setSpeed(tId, trainSpeed);
+  }
+  private void handleJunction(Semaphore newSem, Semaphore prevSem,int switchX, int switchY, int primaryTrack, String primaryDirection, Boolean altRoute) throws Exception{
+
+
+    System.out.println("tId: "+tId+" primaryDirection: "+primaryDirection+" lastStation: "+lastStation+lastStation.equals(primaryDirection)+ "switch"+switchX+","+switchY);
+    System.out.println(newSem);
+
+    
+    if (lastStation.equals(primaryDirection)){//Pickup mode
+      if (!newSem.tryAcquire()){
+        //fails
+        if (altRoute){
+          tsi.setSwitch(switchX, switchY,(primaryTrack+3)%3);
+          System.out.println("!!!!ALT!!!");
+          return;
+        }
+        else{
+          tsi.setSpeed(tId, 0);
+          newSem.acquire();
+          tsi.setSpeed(tId, trainSpeed);
+        }
+      }
+      // priamry track = ends with 1
+      tsi.setSwitch(switchX, switchY,(false) ? (primaryTrack+3)%3:primaryTrack); //TODO: Fix this magic
+      System.out.println("!!PRimary");
+
     }
-}
+    else{
+      System.out.println("Semaphore Releasaed!!: "+prevSem.equals(prevSem));
+      prevSem.release();
+      System.out.println("Semaphore Releasaed: "+prevSem);
+    }
+    //Release mode
+    
+    
+    }
+  }
    
 }
-class SemaphoreManager {
-  public Semaphore semA, semB, semC, semD, semE, semF;
-  public SemaphoreManager(){
-    this.semA = new Semaphore(1);
-    this.semB = new Semaphore(1);
-    this.semC = new Semaphore(1);
-    this.semD = new Semaphore(1);
-    this.semE = new Semaphore(1);
-    this.semF = new Semaphore(1);
-  }
-}
-
 class Swiches{
   static class Switch {
     private int x;
