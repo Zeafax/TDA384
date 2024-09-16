@@ -25,7 +25,7 @@ public class Lab1 {
     SemaphoreManager semMan;
     String lastStation;
 
-    static final String[] sensors = {"a"};
+    static final String[] sensors = {"16,3","8,6","16,5","7,7","8,8","9,7","16,7","17,8","18,7","3,9","4,10","5,9","14,9","15,10","16,9","2,11","4,1","16,11","3,12","16,13"};
     static final int ACTIVE = 0x01;
 	  static final int INACTIVE = 0x02; 
 
@@ -34,30 +34,7 @@ public class Lab1 {
       this.tsi = tsi;
       this.tId = tId;
       this.trainSpeed = trainSpeed;
-      this.lastStation = lastStation; 
-
-      //sens array
-      /* this.sensors = new int[20][2];
-      this.sensors[0][0] = 16; this.sensors[0][1] = 3;
-      this.sensors[1][0] = 8; this.sensors[1][1] = 6;
-      this.sensors[2][0] = 16; this.sensors[2][1] = 5;
-      this.sensors[3][0] = 7; this.sensors[3][1] = 7;
-      this.sensors[4][0] = 8; this.sensors[4][1] = 8;
-      this.sensors[5][0] = 9; this.sensors[5][1] = 7;
-      this.sensors[6][0] = 16; this.sensors[6][1] = 7;
-      this.sensors[7][0] = 17; this.sensors[7][1] = 8;
-      this.sensors[8][0] = 18; this.sensors[8][1] = 7;
-      this.sensors[9][0] = 3; this.sensors[9][1] = 9;
-      this.sensors[10][0] = 4; this.sensors[10][1] = 10;
-      this.sensors[11][0] = 5; this.sensors[11][1] = 9;
-      this.sensors[12][0] = 14; this.sensors[12][1] = 9;
-      this.sensors[13][0] = 15; this.sensors[13][1] = 10;
-      this.sensors[14][0] = 16; this.sensors[14][1] = 9;
-      this.sensors[15][0] = 2; this.sensors[15][1] = 11;
-      this.sensors[16][0] = 4; this.sensors[16][1] = 1;
-      this.sensors[17][0] = 16; this.sensors[17][1] = 11;
-      this.sensors[18][0] = 3; this.sensors[18][1] = 12;
-      this.sensors[19][0] = 16; this.sensors[19][1] = 13; */
+      this.lastStation = lastStation;
     }
 
     public void run(){
@@ -104,8 +81,23 @@ public class Lab1 {
         e.printStackTrace();    // or only e.getMessage() for the error
         System.exit(1);
       }
+      if (sEvent.getStatus() == INACTIVE) continue;
+      String sensor_string = sEvent.getXpos()+","+sEvent.getYpos();
+      int sensor_pos;
+      for (int i = 0; i <sensors.length; i++){
+        if (sensors[i] == sensor_string){sensor_pos = i;}
+       }
 
-      if (sEvent.getXpos() == sensors[0][0] && sEvent.getYpos() == sensors[0][1] && sEvent.getStatus() == ACTIVE){ // Train at sensor A
+      switch (sensor_pos) {
+        case 0:
+          
+          break;
+      
+        default:
+          break;
+      }
+
+      if ( sensor_pos == sensors[0]&& sEvent.getStatus() == ACTIVE){ // Train at sensor A
         switch (this.lastStation) {
           case "NORTH":
             break;
@@ -151,7 +143,7 @@ public class Lab1 {
    
 }
 class SemaphoreManager {
-  public Semaphore semA, semB, semC, semD, semE, semF, semG, semH;
+  public Semaphore semA, semB, semC, semD, semE, semF;
   public SemaphoreManager(){
     this.semA = new Semaphore(1);
     this.semB = new Semaphore(1);
