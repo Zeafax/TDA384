@@ -8,6 +8,8 @@ public class Lab1 {
   Semaphore semD = new Semaphore(1);
   Semaphore semE = new Semaphore(1);
   Semaphore semF = new Semaphore(1);
+  Semaphore semNorth = new Semaphore(1);
+  Semaphore semSouth = new Semaphore(1);
 
   public Lab1(int speed1, int speed2) {
     TSimInterface tsi = TSimInterface.getInstance();
@@ -64,9 +66,6 @@ public class Lab1 {
         while (true) {
           SensorEvent sEvent;
           sEvent = tsi.getSensor(tId);
-          if (sEvent.getStatus() == INACTIVE) {
-            continue;
-          }
           String sensor_string = sEvent.getXpos() + "," + sEvent.getYpos();
           int sensor_pos = -1;
           System.out.println("Sensor string: " + sensor_string);
@@ -76,27 +75,36 @@ public class Lab1 {
             }
           }
           System.out.println("sensor_pos: " + sensor_pos);
+          // Switch statement to handle the different sensors
           switch (sensor_pos) {
-            case 0, 1 -> this.waitStation();
-            case 2, 3 -> this.handleJunction(semB, Swiches.X, 0, "NORTH", false, sensor_string);
-            case 4, 5 -> this.handleJunction(semB, Swiches.X, 0, "SOUTH", false, sensor_string);
+            case 0, 1 -> this.waitStation(sEvent.getStatus());
+            case 2, 3 -> this.handleJunction(semB, Swiches.X, 0, "NORTH", false, sensor_string, sEvent.getStatus());
+            case 4, 5 -> this.handleJunction(semB, Swiches.X, 0, "SOUTH", false, sensor_string, sEvent.getStatus());
             case 6, 7 ->
-              this.handleJunction(semC, Swiches.A, TSimInterface.SWITCH_RIGHT, "NORTH", false, sensor_string);
+              this.handleJunction(semC, Swiches.A, TSimInterface.SWITCH_RIGHT, "NORTH", false, sensor_string,
+                  sEvent.getStatus());
             case 8 ->
-              this.handleJunction(semA, Swiches.A, TSimInterface.SWITCH_RIGHT, "SOUTH", true, sensor_string);
+              this.handleJunction(semA, Swiches.A, TSimInterface.SWITCH_RIGHT, "SOUTH", true, sensor_string,
+                  sEvent.getStatus());
             case 9 ->
-              this.handleJunction(semD, Swiches.B, TSimInterface.SWITCH_RIGHT, "NORTH", true, sensor_string);
+              this.handleJunction(semD, Swiches.B, TSimInterface.SWITCH_RIGHT, "NORTH", true, sensor_string,
+                  sEvent.getStatus());
             case 10, 11 ->
-              this.handleJunction(semC, Swiches.B, TSimInterface.SWITCH_RIGHT, "SOUTH", false, sensor_string);
+              this.handleJunction(semC, Swiches.B, TSimInterface.SWITCH_RIGHT, "SOUTH", false, sensor_string,
+                  sEvent.getStatus());
             case 12, 13 ->
-              this.handleJunction(semE, Swiches.C, TSimInterface.SWITCH_LEFT, "NORTH", false, sensor_string);
+              this.handleJunction(semE, Swiches.C, TSimInterface.SWITCH_LEFT, "NORTH", false, sensor_string,
+                  sEvent.getStatus());
             case 14 ->
-              this.handleJunction(semD, Swiches.C, TSimInterface.SWITCH_LEFT, "SOUTH", true, sensor_string);
+              this.handleJunction(semD, Swiches.C, TSimInterface.SWITCH_LEFT, "SOUTH", true, sensor_string,
+                  sEvent.getStatus());
             case 15 ->
-              this.handleJunction(semF, Swiches.D, TSimInterface.SWITCH_LEFT, "NORTH", true, sensor_string);
+              this.handleJunction(semF, Swiches.D, TSimInterface.SWITCH_LEFT, "NORTH", true, sensor_string,
+                  sEvent.getStatus());
             case 16, 17 ->
-              this.handleJunction(semE, Swiches.D, TSimInterface.SWITCH_LEFT, "SOUTH", false, sensor_string);
-            case 18, 19 -> this.waitStation();
+              this.handleJunction(semE, Swiches.D, TSimInterface.SWITCH_LEFT, "SOUTH", false, sensor_string,
+                  sEvent.getStatus());
+            case 18, 19 -> this.waitStation(sEvent.getStatus());
             default -> System.out.println("Sensor: " + sensor_pos + " not detected");
           }
         }
@@ -108,70 +116,77 @@ public class Lab1 {
 
     }
 
-    private synchronized void waitStation() throws Exception {
+    private void waitStation(int SensorStatus) throws Exception {
+      if (SensorStatus == INACTIVE) {
+        return;
+      }
       tsi.setSpeed(tId, 0);
-      wait(1000 + 20 * Math.abs(this.trainSpeed));
-      int newspeed = -this.trainSpeed;
-      this.trainSpeed = newspeed;
+      int newspeed = -trainSpeed;
+      trainSpeed = newspeed;
       tsi.setSpeed(tId, trainSpeed);
       lastStation = lastStation.equals("NORTH") ? "SOUTH" : "NORTH";
     }
 
-    private synchronized void handleJunction(Semaphore Sem, Swiches.Switch s, int primaryTrack,
-        String primaryDirection, Boolean altRoute, String sensor) throws Exception {
+    private void handleJunction(Semaphore Sem, Swiches.Switch s, int primaryTrack,
+        String primaryDirection, Boolean altRoute, String sensor, int SensorStatus) throws Exception {
 
       System.out.println("SENSOR: " + sensor + " ACTIVE");
       System.out.println("NEW SEMAPHORE: " + Sem);
       int switchX = s.getX();
       int switchY = s.getY();
 
-      // System.out.println("tId: " + tId + " primaryDirection: " + primaryDirection +
-      // " //lastStation: " + lastStation
-      // + lastStation.equals(primaryDirection) + " //switch: " + switchX + "," +
-      // switchY);
-      // System.out.println(newSem);
+      // Determines if the train is in pickup mode or release mode
+      if (SensorStatus == ACTIVE) {
+        // Pickup mode, which means the train hit a sensor on the way in to the junction
+        // and picks up the semaphore
+        if (lastStation.equals(primaryDirection)) {// Pickup mode
+          System.out.println("PICKUP MODE");
+          if (!Sem.tryAcquire()) {
+            System.out.println("SEMAPHORE LOCKED");
+            // fails
+            // If the semaphore is locked and the train has an
+            // alternative route, the train will take the alternative route
+            if (altRoute && switchX != 0 && switchY != 0) {
+              tsi.setSwitch(switchX, switchY, (primaryTrack == 1) ? 2 : 1);
+              System.out.println("ALTROUTE ACTIVATED!! " + (primaryTrack + 3) % 3);
+              return;
+              // else the train will wait until the semaphore is released
+            } else {
+              tsi.setSpeed(tId, 0);
+              Sem.acquire();
+              tsi.setSpeed(tId, trainSpeed);
+            }
+          }
 
-      if (lastStation.equals(primaryDirection)) {// Pickup mode
-        System.out.println("PICKUP MODE");
-        if (!Sem.tryAcquire()) {
-          System.out.println("SEMAPHORE LOCKED");
-          // fails
-          if (altRoute && switchX != 0 && switchY != 0) {
-            tsi.setSwitch(switchX, switchY, (primaryTrack == 1) ? 2 : 1);
-            System.out.println("ALTROUTE ACTIVATED!! " + (primaryTrack + 3) % 3);
+          System.out.println("SEMAPHORE: " + Sem + " ACQUIRED");
+
+          if (switchX == 0 && switchY == 0) { // Intersection without a switch, train always waits
             return;
-          } else {
-            tsi.setSpeed(tId, 0);
-            Sem.acquire();
-            wait(1000 + 20 * Math.abs(trainSpeed));
-            tsi.setSpeed(tId, trainSpeed);
           }
-        }
 
-        System.out.println("SEMAPHORE: " + Sem + " ACQUIRED");
-
-        if (switchX == 0 && switchY == 0) {
-          return;
-        }
-
-        boolean alt = false;
-        for (int i = 0; i < alt_sensors.length; i++) {
-          if (alt_sensors[i].equals(sensor)) {
-            alt = true;
+          boolean alt = false;
+          for (int i = 0; i < alt_sensors.length; i++) {
+            if (alt_sensors[i].equals(sensor)) {
+              alt = true;
+            }
           }
+
+          System.out.println("ALTROUTE: " + alt);
+
+          int altTrack = (primaryTrack == 1) ? 2 : 1;
+
+          tsi.setSwitch(switchX, switchY, alt ? altTrack : primaryTrack);
+
+        } else { // Release mode, which means the train hit a sensor on the way out of the
+                 // junction and releases the semaphore
+          if (Sem.availablePermits() == 0) {
+            System.out.println("RELEASE MODE");
+            // System.out.println("Semaphore Released!!: " + prevSem.equals(prevSem));
+            Sem.release();
+            System.out.println("Semaphore Released: " + Sem);
+          }
+
         }
-
-        System.out.println("ALTROUTE: " + alt);
-
-        int altTrack = (primaryTrack == 1) ? 2 : 1;
-
-        tsi.setSwitch(switchX, switchY, alt ? altTrack : primaryTrack);
-
-      } else { // Release mode
-        System.out.println("RELEASE MODE");
-        // System.out.println("Semaphore Released!!: " + prevSem.equals(prevSem));
-        Sem.release();
-        System.out.println("Semaphore Released: " + Sem);
       }
     }
   }
