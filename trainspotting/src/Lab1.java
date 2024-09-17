@@ -1,6 +1,5 @@
 import TSim.*;
 import java.util.concurrent.Semaphore;
-import java.util.LinkedList;
 
 public class Lab1 {
   Semaphore semA = new Semaphore(1);
@@ -28,7 +27,7 @@ public class Lab1 {
   private class TrainBrain implements Runnable {
     int tId, trainSpeed;
     String lastStation;
-    LinkedList<Semaphore> activeSemaphores = new LinkedList<Semaphore>();
+    boolean onAlternateRoute;
 
 
     static final String[] sensors = { "16,3", "16,5", "8,5", "6,7", "9,8", "10,7", "15,7", "16,8", "19,7", "17,9",
@@ -37,6 +36,7 @@ public class Lab1 {
     TrainBrain(int tId, int trainSpeed) {
       this.tId = tId;
       this.trainSpeed = trainSpeed;
+      this.onAlternateRoute = false;
     }
 
     public void run() {
@@ -49,13 +49,11 @@ public class Lab1 {
         switch (tId) {
           case 1 -> {
             semA.acquire();
-            activeSemaphores.addFirst(semA);
             System.out.println(semA);
             lastStation = "NORTH";
           }
           case 2 -> {
             semF.acquire();
-            activeSemaphores.addFirst(semF);
             lastStation = "SOUTH";
             System.out.println(semF);
           }
@@ -75,9 +73,9 @@ public class Lab1 {
           }
           System.out.println("sensor_pos: " + sensor_pos);
           switch (sensor_pos) {
-            case 0, 1 -> this.waitStation();
-            case 2, 3 -> this.handle4way(semB,"NORTH");
-            case 4, 5 -> this.handle4way(semB,"SOUTH");
+            case 0, 1 -> this.waitStation(sEvent);
+            case 2, 3 -> this.handle4way(semB,"NORTH",sEvent);
+            case 4, 5 -> this.handle4way(semB,"SOUTH",sEvent);
             case 6, 7 ->
               this.handleJunction(semC, Swiches.A, TSimInterface.SWITCH_RIGHT, "NORTH", false, sEvent, sensor_string);
             case 8 ->
@@ -94,21 +92,22 @@ public class Lab1 {
               this.handleJunction(semF, Swiches.D, TSimInterface.SWITCH_LEFT, "NORTH", true, sEvent, sensor_string);
             case 16, 17 ->
               this.handleJunction(semE, Swiches.D, TSimInterface.SWITCH_LEFT, "SOUTH", false, sEvent, sensor_string);
-            case 18, 19 -> this.waitStation();
+            case 18, 19 -> this.waitStation(sEvent);
             default -> System.out.println("Sensor: " + sensor_pos + " not detected");
           }
         }
       } catch (Exception e) {
         // TODO: handle exception
         e.printStackTrace(); // or only e.getMessage() for the error
-        // System.exit(1);
+        System.exit(1);
       }
 
     }
 
-    private void waitStation() throws Exception {
+    private void waitStation(SensorEvent sEvent) throws Exception {
+      if (sEvent.getStatus() == SensorEvent.INACTIVE)return;
       tsi.setSpeed(tId, 0);
-      wait(1000 + 20 * Math.abs(this.trainSpeed));
+      Thread.sleep(1000 + 20 * Math.abs(this.trainSpeed));
       int newspeed = -this.trainSpeed;
       this.trainSpeed = newspeed;
       tsi.setSpeed(tId, trainSpeed);
@@ -116,40 +115,47 @@ public class Lab1 {
     }
     
     private void handleJunction(Semaphore sem, Swiches.Switch s,int primaryDir, String pickupDir, Boolean altRoute, SensorEvent sEvent, String sensor_string) throws Exception{
-      System.out.println("SENSOR: " + sensor_string + " ACTIVE");
+      System.out.println("SENSOR: " + sensor_string +((sEvent.getStatus()==SensorEvent.ACTIVE?"ACTIVE":"INACTIVE")));
       if (lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.ACTIVE) Pickup(sem,s,altRoute,primaryDir);
-      if (!lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.INACTIVE) Release();
+      if (!lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.INACTIVE) Release(sem,altRoute);
     }
 
     private void Pickup(Semaphore sem, Swiches.Switch s,Boolean altRoute, int primaryDir) throws Exception {
       if(!sem.tryAcquire()){
         if (altRoute){ // alt route
           tsi.setSwitch(s.getX(), s.getY(), (primaryDir==1)?2:1);
+          onAlternateRoute = true;
           return;
         }
         //no alt route
+        
         tsi.setSpeed(tId, 0);
         sem.acquire();
+        tsi.setSpeed(tId, trainSpeed);
       }
-      tsi.setSwitch(s.getX(), s.getY(), primaryDir);
-      activeSemaphores.add(sem);
+      tsi.setSwitch(s.getX(), s.getY(), onAlternateRoute?(primaryDir==1)?2:1:primaryDir);
     }
 
 
-    private void Release() throws Exception {
-      if (activeSemaphores.getFirst() == activeSemaphores.getLast()) return;
-      activeSemaphores.getFirst().release();
-      activeSemaphores.removeFirst();
+    private void Release(Semaphore sem, Boolean altRoute ) throws Exception {
+      System.out.println("Relelease: "+sem);
+      if (onAlternateRoute && altRoute){
+        onAlternateRoute = false;
+        return;
+      }
+      sem.release();
+      
     }
 
-    private void handle4way(Semaphore sem,String pickupDir) throws Exception{ //semB
-      if (lastStation.equals(pickupDir)){ // pickup
+    private void handle4way(Semaphore sem,String pickupDir,SensorEvent sEvent) throws Exception{ //semB
+      if (lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.ACTIVE){ // pickup
         if(!sem.tryAcquire()){
           tsi.setSpeed(tId,0);
           sem.acquire();
+          tsi.setSpeed(tId,trainSpeed);
         }
       }
-      else{ // release
+      if (!lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.INACTIVE){ // release
         sem.release();
       }
 
