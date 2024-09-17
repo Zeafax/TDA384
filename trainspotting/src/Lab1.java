@@ -1,6 +1,7 @@
 import TSim.*;
 import java.util.concurrent.Semaphore;
 import java.util.function.Consumer;
+import java.util.LinkedList;
 
 public class Lab1 {
   Semaphore semA = new Semaphore(1);
@@ -32,6 +33,7 @@ public class Lab1 {
     }
   
     public Boolean isPrimary(){
+      return false;
     }
     
     }
@@ -42,23 +44,28 @@ public class Lab1 {
   }
   class SensorObj {
     Swiches.Switch targetSwitch;
-    Semaphore nextSem, prevSem;
+    Semaphore sem;
     int altRoute;
     int switchDir;
     String pickupDir;
+    int sensorStatus;
     Consumer<String> action;
 
-    SensorObj(Swiches.Switch targetSwitch,Semaphore nextSem,Semaphore prevSem,int altRoute,int switchDir,String pickupDir,Consumer<String> action){
+    SensorObj(Swiches.Switch targetSwitch,Semaphore sem,int altRoute,int switchDir,String pickupDir,int sensorStatus,Consumer<String> action){
       this.targetSwitch = targetSwitch;
-      this.nextSem = nextSem;
-      this.prevSem = prevSem;
+      this.sem = sem;
       this.altRoute = altRoute;
       this.switchDir = switchDir;
       this.pickupDir = pickupDir;
+      this.sensorStatus = sensorStatus;
+      this.action=action;
     }
 
     public void handle4way(String tDir){
       if (this.pickupDir.equals(tDir)){
+        if(!semB.tryAcquire()){
+          tsi.setSpeed(tId, altRoute);
+        }
       }
     }
 
@@ -71,7 +78,7 @@ public class Lab1 {
     }
 
     public void PickupSem() throws Exception{
-      if(nextSem.tryAcquire()){
+      if(sem.tryAcquire()){
         tsi.setSwitch(targetSwitch.getX(),targetSwitch.getY(),switchDir);
         return;
       }
@@ -79,7 +86,7 @@ public class Lab1 {
         tsi.setSwitch(targetSwitch.getX(),targetSwitch.getY(),altRoute);
         return;
       }
-      nextSem.acquire();
+      sem.acquire();
       tsi.setSwitch(targetSwitch.getX(),targetSwitch.getY(),switchDir);
     }
 
@@ -102,7 +109,8 @@ public class Lab1 {
     
     TSimInterface tsi;
     String lastStation;
-    Boolean onAltRoute;
+    LinkedList<Semaphore> activeSems = new LinkedList<Semaphore>();
+    
 
     static final String[] sensors = {"16,3","8,6","16,5","7,7","8,8","9,7","16,7","17,8","18,7","3,9","4,10","5,9","14,9","15,10","16,9","2,11","4,11","16,11","3,12","16,13"};
 
@@ -121,11 +129,13 @@ public class Lab1 {
         switch (tId){
           case 1 -> {
               semA.acquire();
+              activeSems.addFirst(semA);
               System.out.println(semA);
               lastStation = "NORTH";
               }
           case 2 -> {
               semF.acquire();
+              activeSems.addFirst(semF);
               lastStation = "SOUTH";
               System.out.println(semF);
               }
