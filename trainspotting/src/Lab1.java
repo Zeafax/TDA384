@@ -1,5 +1,6 @@
 import TSim.*;
 import java.util.concurrent.Semaphore;
+import java.util.function.Consumer;
 
 public class Lab1 {
   Semaphore semA = new Semaphore(1);
@@ -9,11 +10,86 @@ public class Lab1 {
   Semaphore semE = new Semaphore(1);
   Semaphore semF = new Semaphore(1);
 
-  public Lab1(int speed1, int speed2) {
-    TSimInterface tsi = TSimInterface.getInstance();
+  TSimInterface tsi = TSimInterface.getInstance();
+  class Swiches{
+    static class Switch {
+      private int x;
+      private int y;
+      private int primaryDir;  
     
-    TrainBrain tb1 = new TrainBrain(tsi,1,speed1);
-    TrainBrain tb2 = new TrainBrain(tsi,2,speed2);
+  
+    public Switch(int x, int y, int primaryDir){
+      this.x = x;
+      this.y = y;
+      }
+    
+    public int getX(){
+      return x;
+    }
+    
+    public int getY(){
+      return y;
+    }
+  
+    public Boolean isPrimary(){
+    }
+    
+    }
+    public static final Switch A = new Switch(17, 7, TSimInterface.SWITCH_RIGHT);
+    public static final Switch B = new Switch(15, 9,TSimInterface.SWITCH_RIGHT);
+    public static final Switch C = new Switch(4, 9,TSimInterface.SWITCH_RIGHT);
+    public static final Switch D = new Switch(3, 11,TSimInterface.SWITCH_RIGHT);
+  }
+  class SensorObj {
+    Swiches.Switch targetSwitch;
+    Semaphore nextSem, prevSem;
+    int altRoute;
+    int switchDir;
+    String pickupDir;
+    Consumer<String> action;
+
+    SensorObj(Swiches.Switch targetSwitch,Semaphore nextSem,Semaphore prevSem,int altRoute,int switchDir,String pickupDir,Consumer<String> action){
+      this.targetSwitch = targetSwitch;
+      this.nextSem = nextSem;
+      this.prevSem = prevSem;
+      this.altRoute = altRoute;
+      this.switchDir = switchDir;
+      this.pickupDir = pickupDir;
+    }
+
+    public void handle4way(String tDir){
+      if (this.pickupDir.equals(tDir)){
+      }
+    }
+
+    public void handleStation(String tDir){
+      
+    }
+
+    public void handlejunction(String tDir){
+      
+    }
+
+    public void PickupSem() throws Exception{
+      if(nextSem.tryAcquire()){
+        tsi.setSwitch(targetSwitch.getX(),targetSwitch.getY(),switchDir);
+        return;
+      }
+      if(altRoute != 0){
+        tsi.setSwitch(targetSwitch.getX(),targetSwitch.getY(),altRoute);
+        return;
+      }
+      nextSem.acquire();
+      tsi.setSwitch(targetSwitch.getX(),targetSwitch.getY(),switchDir);
+    }
+
+
+  }
+  public Lab1(int speed1, int speed2) {
+    
+    
+    TrainBrain tb1 = new TrainBrain(1,speed1);
+    TrainBrain tb2 = new TrainBrain(2,speed2);
 
     Thread t1 = new Thread(tb1);
     Thread t2 = new Thread(tb2);
@@ -26,13 +102,11 @@ public class Lab1 {
     
     TSimInterface tsi;
     String lastStation;
+    Boolean onAltRoute;
 
     static final String[] sensors = {"16,3","8,6","16,5","7,7","8,8","9,7","16,7","17,8","18,7","3,9","4,10","5,9","14,9","15,10","16,9","2,11","4,11","16,11","3,12","16,13"};
-    static final int ACTIVE = 0x01;
-	  static final int INACTIVE = 0x02; 
 
-    TrainBrain(TSimInterface tsi, int tId, int trainSpeed){
-      this.tsi = tsi;
+    TrainBrain(int tId, int trainSpeed){
       this.tId = tId;
       this.trainSpeed = trainSpeed;
     }
@@ -61,7 +135,7 @@ public class Lab1 {
         while (true){
           SensorEvent sEvent;
           sEvent = tsi.getSensor(tId);
-          if (sEvent.getStatus() == INACTIVE) {continue;}
+          if (sEvent.getStatus() == SensorEvent.INACTIVE) {continue;}
           String sensor_string = sEvent.getXpos()+","+sEvent.getYpos();
           int sensor_pos = -1;
           System.out.println("Sensor string: "+sensor_string);
@@ -138,30 +212,6 @@ public class Lab1 {
   }
    
 }
-class Swiches{
-  static class Switch {
-    private int x;
-    private int y;  
-  
 
-  public Switch(int x, int y){
-    this.x = x;
-    this.y = y;
-    }
-  
-  public int getX(){
-    return x;
-  }
-  
-  public int getY(){
-    return y;
-  }
-  
-  }
-  public static final Switch A = new Switch(17, 7);
-  public static final Switch B = new Switch(15, 9);
-  public static final Switch C = new Switch(4, 9);
-  public static final Switch D = new Switch(3, 11);
-}
 
 
