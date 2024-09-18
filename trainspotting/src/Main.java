@@ -1,8 +1,7 @@
+import TSim.TSimInterface;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.io.IOException;
-
-import TSim.TSimInterface;
 
 public class Main {
 
@@ -35,8 +34,8 @@ public class Main {
         Process p = Runtime.getRuntime().exec(tsimCommand);
         TSimInterface.init(p.getInputStream(), p.getOutputStream());
         TSimInterface.getInstance().setDebug(true);
-        new Lab1(train1_speed, train2_speed);
-        // new Lab1Extra(train1_speed, train2_speed);
+        //new Lab1(train1_speed, train2_speed);
+        new Lab1Extra(train1_speed, train2_speed);
         p.waitFor();
     }
 }

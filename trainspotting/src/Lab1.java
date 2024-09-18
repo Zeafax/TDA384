@@ -19,10 +19,12 @@ public class Lab1 {
 
     Thread t1 = new Thread(tb1);
     Thread t2 = new Thread(tb2);
+
     t1.start();
     t2.start();
 
   }
+
 
   private class TrainBrain implements Runnable {
     int tId, trainSpeed;
@@ -30,8 +32,8 @@ public class Lab1 {
     boolean onAlternateRoute;
 
 
-    static final String[] sensors = { "16,3", "16,5", "8,5", "6,7", "9,8", "10,7", "15,7", "16,8", "19,7", "17,9",
-        "14,10", "13,9", "6,9", "5,10", "2,9", "1,11", "3,13", "5,11", "16,11", "16,13" };
+    static final String[] sensors = { "15,3", "15,5", "8,5", "6,7", "10,8", "10,7", "14,7", "15,8", "19,7", "17,9",
+        "13,10", "13,9", "6,9", "6,10", "2,9", "1,11", "3,13", "5,11", "15,11", "15,13" };
 
     TrainBrain(int tId, int trainSpeed) {
       this.tId = tId;
@@ -65,33 +67,33 @@ public class Lab1 {
           sEvent = tsi.getSensor(tId);
           String sensor_string = sEvent.getXpos() + "," + sEvent.getYpos();
           int sensor_pos = -1;
-          System.out.println("Sensor string: " + sensor_string);
+
           for (int i = 0; i < sensors.length; i++) {
             if (sensors[i].equals(sensor_string)) {
               sensor_pos = i;
             }
           }
-          System.out.println("sensor_pos: " + sensor_pos);
+
           switch (sensor_pos) {
             case 0, 1 -> this.waitStation(sEvent);
             case 2, 3 -> this.handle4way(semB,"NORTH",sEvent);
             case 4, 5 -> this.handle4way(semB,"SOUTH",sEvent);
             case 6, 7 ->
-              this.handleJunction(semC, Swiches.A, TSimInterface.SWITCH_RIGHT, "NORTH", false, sEvent, sensor_string);
+              this.handleJunction(semC, Swiches.A, TSimInterface.SWITCH_RIGHT, "NORTH", false, sEvent);
             case 8 ->
-              this.handleJunction(semA, Swiches.A, TSimInterface.SWITCH_RIGHT, "SOUTH", true, sEvent, sensor_string);
+              this.handleJunction(semA, Swiches.A, TSimInterface.SWITCH_RIGHT, "SOUTH", true, sEvent);
             case 9 ->
-              this.handleJunction(semD, Swiches.B, TSimInterface.SWITCH_RIGHT, "NORTH", true, sEvent, sensor_string);
+              this.handleJunction(semD, Swiches.B, TSimInterface.SWITCH_RIGHT, "NORTH", true, sEvent);
             case 10, 11 ->
-              this.handleJunction(semC, Swiches.B, TSimInterface.SWITCH_RIGHT, "SOUTH", false, sEvent, sensor_string);
+              this.handleJunction(semC, Swiches.B, TSimInterface.SWITCH_RIGHT, "SOUTH", false, sEvent);
             case 12, 13 ->
-              this.handleJunction(semE, Swiches.C, TSimInterface.SWITCH_LEFT, "NORTH", false, sEvent, sensor_string);
+              this.handleJunction(semE, Swiches.C, TSimInterface.SWITCH_LEFT, "NORTH", false, sEvent);
             case 14 ->
-              this.handleJunction(semD, Swiches.C, TSimInterface.SWITCH_LEFT, "SOUTH", true, sEvent, sensor_string);
+              this.handleJunction(semD, Swiches.C, TSimInterface.SWITCH_LEFT, "SOUTH", true, sEvent);
             case 15 ->
-              this.handleJunction(semF, Swiches.D, TSimInterface.SWITCH_LEFT, "NORTH", true, sEvent, sensor_string);
+              this.handleJunction(semF, Swiches.D, TSimInterface.SWITCH_LEFT, "NORTH", true, sEvent);
             case 16, 17 ->
-              this.handleJunction(semE, Swiches.D, TSimInterface.SWITCH_LEFT, "SOUTH", false, sEvent, sensor_string);
+              this.handleJunction(semE, Swiches.D, TSimInterface.SWITCH_LEFT, "SOUTH", false, sEvent);
             case 18, 19 -> this.waitStation(sEvent);
             default -> System.err.println("Sensor: " + sensor_pos + " not detected");
           }
@@ -107,15 +109,14 @@ public class Lab1 {
     private void waitStation(SensorEvent sEvent) throws Exception {
       if (sEvent.getStatus() == SensorEvent.INACTIVE)return;
       tsi.setSpeed(tId, 0);
-      tsi.wait(1000 + 20 * Math.abs(this.trainSpeed));
+      Thread.sleep(1000 + 20 * Math.abs(this.trainSpeed));
       int newspeed = -this.trainSpeed;
       this.trainSpeed = newspeed;
       tsi.setSpeed(tId, trainSpeed);
       lastStation = lastStation.equals("NORTH") ? "SOUTH" : "NORTH";
     }
     
-    private void handleJunction(Semaphore sem, Swiches.Switch target_Switch,int primaryDir, String pickupDir, Boolean altRoute, SensorEvent sEvent, String sensor_string) throws Exception{
-      System.out.println("SENSOR: " + sensor_string +((sEvent.getStatus()==SensorEvent.ACTIVE?"ACTIVE":"INACTIVE")));
+    private void handleJunction(Semaphore sem, Swiches.Switch target_Switch,int primaryDir, String pickupDir, Boolean altRoute, SensorEvent sEvent) throws Exception{
       if (lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.ACTIVE) Pickup(sem,target_Switch,altRoute,primaryDir);
       if (!lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.INACTIVE) Release(sem,altRoute);
     }
@@ -138,7 +139,6 @@ public class Lab1 {
 
 
     private void Release(Semaphore sem, Boolean altRoute ) throws Exception {
-      System.out.println("Relelease: "+sem);
       if (onAlternateRoute && altRoute){
         onAlternateRoute = false;
         return;
