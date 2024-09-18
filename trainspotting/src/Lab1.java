@@ -12,10 +12,9 @@ public class Lab1 {
   TSimInterface tsi = TSimInterface.getInstance();
 
   public Lab1(int speed1, int speed2) {
-    
 
-    TrainBrain tb1 = new TrainBrain( 1, speed1);
-    TrainBrain tb2 = new TrainBrain( 2, speed2);
+    TrainBrain tb1 = new TrainBrain(1, speed1);
+    TrainBrain tb2 = new TrainBrain(2, speed2);
 
     Thread t1 = new Thread(tb1);
     Thread t2 = new Thread(tb2);
@@ -25,12 +24,10 @@ public class Lab1 {
 
   }
 
-
   private class TrainBrain implements Runnable {
     int tId, trainSpeed;
     String lastStation;
     boolean onAlternateRoute;
-
 
     static final String[] sensors = { "15,3", "15,5", "8,5", "6,7", "10,8", "10,7", "14,7", "15,8", "19,7", "17,9",
         "13,10", "13,9", "6,9", "6,10", "2,9", "1,11", "3,13", "5,11", "15,11", "15,13" };
@@ -76,8 +73,8 @@ public class Lab1 {
 
           switch (sensor_pos) {
             case 0, 1 -> this.waitStation(sEvent);
-            case 2, 3 -> this.handle4way(semB,"NORTH",sEvent);
-            case 4, 5 -> this.handle4way(semB,"SOUTH",sEvent);
+            case 2, 3 -> this.handle4way(semB, "NORTH", sEvent);
+            case 4, 5 -> this.handle4way(semB, "SOUTH", sEvent);
             case 6, 7 ->
               this.handleJunction(semC, Swiches.A, TSimInterface.SWITCH_RIGHT, "NORTH", false, sEvent);
             case 8 ->
@@ -98,8 +95,8 @@ public class Lab1 {
             default -> System.err.println("Sensor: " + sensor_pos + " not detected");
           }
         }
+
       } catch (Exception e) {
-        // TODO: handle exception
         e.printStackTrace(); // or only e.getMessage() for the error
         System.exit(1);
       }
@@ -107,7 +104,8 @@ public class Lab1 {
     }
 
     private void waitStation(SensorEvent sEvent) throws Exception {
-      if (sEvent.getStatus() == SensorEvent.INACTIVE)return;
+      if (sEvent.getStatus() == SensorEvent.INACTIVE)
+        return;
       tsi.setSpeed(tId, 0);
       Thread.sleep(1000 + 20 * Math.abs(this.trainSpeed));
       int newspeed = -this.trainSpeed;
@@ -115,77 +113,81 @@ public class Lab1 {
       tsi.setSpeed(tId, trainSpeed);
       lastStation = lastStation.equals("NORTH") ? "SOUTH" : "NORTH";
     }
-    
-    private void handleJunction(Semaphore sem, Swiches.Switch target_Switch,int primaryDir, String pickupDir, Boolean altRoute, SensorEvent sEvent) throws Exception{
-      if (lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.ACTIVE) Pickup(sem,target_Switch,altRoute,primaryDir);
-      if (!lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.INACTIVE) Release(sem,altRoute);
+
+    private void handleJunction(Semaphore sem, Swiches.Switch target_Switch, int primaryDir, String pickupDir,
+        Boolean altRoute, SensorEvent sEvent) throws Exception {
+      // Makes sure pickup is dont on an active sensor event
+      if (lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.ACTIVE)
+        Pickup(sem, target_Switch, altRoute, primaryDir);
+      // Makes sure release is done on an inactive sensor event
+      if (!lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.INACTIVE)
+        Release(sem, altRoute);
     }
 
-    private void Pickup(Semaphore sem, Swiches.Switch target_Switch,Boolean altRoute, int primaryDir) throws Exception {
-      if(!sem.tryAcquire()){
-        if (altRoute){ // alt route
-          tsi.setSwitch(target_Switch.getX(), target_Switch.getY(), (primaryDir==1)?2:1);
+    private void Pickup(Semaphore sem, Swiches.Switch target_Switch, Boolean altRoute, int primaryDir)
+        throws Exception {
+      if (!sem.tryAcquire()) {
+        if (altRoute) { // alt route
+          tsi.setSwitch(target_Switch.getX(), target_Switch.getY(), (primaryDir == 1) ? 2 : 1);
           onAlternateRoute = true;
           return;
         }
-        //no alt route
+        // no alt route
         tsi.setSpeed(tId, 0);
         sem.acquire();
         tsi.setSpeed(tId, trainSpeed);
       }
-      int alternateDir = (primaryDir==1)?2:1;
-      tsi.setSwitch(target_Switch.getX(), target_Switch.getY(), onAlternateRoute?alternateDir:primaryDir);
+      int alternateDir = (primaryDir == 1) ? 2 : 1;
+      tsi.setSwitch(target_Switch.getX(), target_Switch.getY(), onAlternateRoute ? alternateDir : primaryDir);
     }
 
-
-    private void Release(Semaphore sem, Boolean altRoute ) throws Exception {
-      if (onAlternateRoute && altRoute){
+    private void Release(Semaphore sem, Boolean altRoute) throws Exception {
+      if (onAlternateRoute && altRoute) { // makes sure release is not done on alternate route
         onAlternateRoute = false;
         return;
       }
       sem.release();
-      
+
     }
 
-    private void handle4way(Semaphore sem,String pickupDir,SensorEvent sEvent) throws Exception{ //semB
-      if (lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.ACTIVE){ // pickup
-        if(!sem.tryAcquire()){
-          tsi.setSpeed(tId,0);
+    private void handle4way(Semaphore sem, String pickupDir, SensorEvent sEvent) throws Exception { // semB
+      if (lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.ACTIVE) { // pickup
+        if (!sem.tryAcquire()) {
+          tsi.setSpeed(tId, 0);
           sem.acquire();
-          tsi.setSpeed(tId,trainSpeed);
+          tsi.setSpeed(tId, trainSpeed);
         }
       }
-      if (!lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.INACTIVE){ // release
+      if (!lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.INACTIVE) { // release
         sem.release();
       }
 
     }
   }
+
   class Swiches {
     static class Switch {
       private int x;
       private int y;
-  
+
       public Switch(int x, int y) {
         this.x = x;
         this.y = y;
       }
-  
+
       public int getX() {
         return x;
       }
-  
+
       public int getY() {
         return y;
       }
-  
+
     }
-  
+
     public static final Switch A = new Switch(17, 7);
     public static final Switch B = new Switch(15, 9);
     public static final Switch C = new Switch(4, 9);
     public static final Switch D = new Switch(3, 11);
-    public static final Switch X = new Switch(0, 0);
   }
 }
-

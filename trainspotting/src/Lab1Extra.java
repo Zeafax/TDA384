@@ -72,6 +72,7 @@ public class Lab1Extra {
             }
           }
           System.out.println("sensor_pos: " + sensor_pos);
+          //
           switch (sensor_pos) {
             case 0, 1 -> this.waitStation(sEvent);
             case 2, 3 -> this.handle4way(monitorB, "NORTH", sEvent);
@@ -97,7 +98,6 @@ public class Lab1Extra {
           }
         }
       } catch (Exception e) {
-        // TODO: handle exception
         e.printStackTrace(); // or only e.getMessage() for the error
         System.exit(1);
       }
@@ -112,17 +112,16 @@ public class Lab1Extra {
       int newspeed = -this.trainSpeed;
       this.trainSpeed = newspeed;
       tsi.setSpeed(tId, trainSpeed);
-      lastStation = lastStation.equals("NORTH") ? "SOUTH" : "NORTH";
+      lastStation = lastStation.equals("NORTH") ? "SOUTH" : "NORTH"; // updates last visited station
     }
 
     private void handleJunction(Monitor monitor, Swiches.Switch s, int primaryDir, String pickupDir, Boolean altRoute,
         SensorEvent sEvent) throws Exception {
+      // Makes sure pickup is done on an active sensor event
       if (lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.ACTIVE)
-        // Pickup(monitor, s, altRoute, primaryDir);
         Pickup(monitor, s, altRoute, primaryDir);
-
+      // Makes sure release is done on an inactive sensor event
       if (!lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.INACTIVE)
-        // Release(monitor, altRoute);
         Release(monitor, altRoute);
     }
 
@@ -143,7 +142,7 @@ public class Lab1Extra {
     }
 
     private void Release(Monitor monitor, Boolean altRoute) throws Exception {
-      if (onAlternateRoute && altRoute) {
+      if (onAlternateRoute && altRoute) { // makes sure release is not done on alternate route
         onAlternateRoute = false;
         return;
       }
@@ -229,6 +228,5 @@ public class Lab1Extra {
     public static final Switch B = new Switch(15, 9);
     public static final Switch C = new Switch(4, 9);
     public static final Switch D = new Switch(3, 11);
-    public static final Switch X = new Switch(0, 0);
   }
 }
