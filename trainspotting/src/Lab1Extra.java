@@ -31,7 +31,7 @@ public class Lab1Extra {
     boolean onAlternateRoute;
 
     static final String[] sensors = { "15,3", "15,5", "8,5", "6,7", "10,8", "10,7", "14,7", "15,8", "19,7", "17,9",
-    "13,10", "13,9", "6,9", "6,10", "2,9", "1,11", "3,13", "5,11", "15,11", "15,13" };
+        "13,10", "13,9", "6,9", "6,10", "2,9", "1,11", "3,13", "5,11", "15,11", "15,13" };
 
     TrainBrain(int tId, int trainSpeed) {
       this.tId = tId;
@@ -153,7 +153,7 @@ public class Lab1Extra {
 
     private void handle4way(Monitor monitor, String pickupDir, SensorEvent sEvent) throws Exception { // semB
       if (lastStation.equals(pickupDir) && sEvent.getStatus() == SensorEvent.ACTIVE) { // pickup
-        if (monitor.tryEnter()) {
+        if (!monitor.tryEnter()) {
           tsi.setSpeed(tId, 0);
           monitor.enter();
           tsi.setSpeed(tId, trainSpeed);
@@ -172,15 +172,14 @@ public class Lab1Extra {
 
     public void enter() throws InterruptedException {
       lock.lock();
-      while (!trackFree) {
+      try {
+        while (!trackFree) {
+          condition.await();
+        }
+        trackFree = false;
+      } finally {
         lock.unlock();
-        System.out.println("BEFORE AWAIT");
-        condition.await();
-        System.out.println("AFTER AWAIT");
-        lock.lock();
       }
-      trackFree = false;
-      lock.unlock();
     }
 
     public void leave() {
