@@ -134,6 +134,7 @@ public class ForkJoinSolver
                         }
                     }
                 } else {
+                    // If there is only one unvisited neighbor, add it to the frontier
                     for (int neighbor : unvisitedNeighbors) {
                         predecessor.put(neighbor, current);
                         frontier.push(neighbor);
@@ -142,7 +143,7 @@ public class ForkJoinSolver
             }
         }
 
-        // Join all tasks
+        // Join all tasks and return result if goal has been found
         for (ForkJoinSolver task : tasks) {
             List<Integer> result = task.join();
             if (result != null) {
