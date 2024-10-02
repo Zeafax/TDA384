@@ -79,6 +79,7 @@ public class ForkJoinSolver
 
         // Initialize first thread
         if (frontier.isEmpty()) {
+            visited.add(start);
             frontier.push(start);
             player = maze.newPlayer(start);
         }
@@ -98,37 +99,35 @@ public class ForkJoinSolver
                 return pathFromTo(start, current);
             }
 
-            // If current node has not been visited
-            if (visited.add(current)) {
-                maze.move(player, current);
-                steps_taken++;
-
-                // Get neighbors of current node
-                Set<Integer> neighbors = maze.neighbors(current);
-                // Filter out visited neighbors
-                List<Integer> unvisitedNeighbors = new ArrayList<>();
-                for (int neighbor : neighbors) {
-                    if (!visited.contains(neighbor)) {
-                        unvisitedNeighbors.add(neighbor);
-                    }
+            
+            //handle movement
+            maze.move(player, current);
+            steps_taken++;
+            // Get neighbors of current node
+            Set<Integer> neighbors = maze.neighbors(current);
+            // Filter out visited neighbors
+            List<Integer> unvisitedNeighbors = new ArrayList<>();
+            for (int neighbor : neighbors) {
+                if (visited.add(neighbor)) { // stops multiple thread from adding the same neighbor
+                    unvisitedNeighbors.add(neighbor);
                 }
+            }
 
-                // Iterate over unvisited neighbors
-                for (int neighbor : unvisitedNeighbors) {
-                    predecessor.put(neighbor, current);
-                    if (steps_taken >= forkAfter && unvisitedNeighbors.size() > 1) {
-                        steps_taken = 0;
-                        // Fork new task and add necessary data
-                        ForkJoinSolver task = new ForkJoinSolver(maze, forkAfter);
-                        task.visited = this.visited;
-                        task.predecessor = this.predecessor;
-                        task.frontier.push(neighbor);
-                        task.player = maze.newPlayer(neighbor);
-                        tasks.add(task);
-                        task.fork();
-                    } else {
-                        frontier.push(neighbor);
-                    }
+            // Iterate over unvisited neighbors
+            for (int neighbor : unvisitedNeighbors) {
+                predecessor.put(neighbor, current);
+                if (steps_taken >= forkAfter && unvisitedNeighbors.size() > 1 ) { // unvisitedNeighbors.size() > 1 so that a new thread is not started when there is only one available path
+                    steps_taken = 0;
+                    // Fork new task and add necessary data
+                    ForkJoinSolver task = new ForkJoinSolver(maze, forkAfter);
+                    task.visited = this.visited;
+                    task.predecessor = this.predecessor;
+                    task.frontier.push(neighbor);
+                    task.player = maze.newPlayer(neighbor);
+                    tasks.add(task);
+                    task.fork();
+                } else {
+                    frontier.push(neighbor);
                 }
             }
         }
