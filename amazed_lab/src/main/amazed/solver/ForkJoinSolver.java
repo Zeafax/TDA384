@@ -4,12 +4,11 @@ import amazed.maze.Maze;
 
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.Set;
-import java.util.Stack;
-import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.Deque;
+import java.util.ArrayDeque;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <code>ForkJoinSolver</code> implements a solver for
@@ -26,6 +25,7 @@ public class ForkJoinSolver
     private int player;
     private int steps_taken;
     private static final AtomicBoolean goalFound = new AtomicBoolean(false);
+    private Deque<Integer> frontier;
 
     /**
      * Creates a solver that searches in <code>maze</code> from the
@@ -35,8 +35,10 @@ public class ForkJoinSolver
      */
     public ForkJoinSolver(Maze maze) {
         super(maze);
-        this.visited = new ConcurrentSkipListSet<>();
+        this.visited = ConcurrentHashMap.newKeySet();
+        this.predecessor = new ConcurrentHashMap<>();
         this.steps_taken = 0;
+        this.frontier = new ArrayDeque<>();
     }
 
     /**
@@ -77,8 +79,6 @@ public class ForkJoinSolver
 
         // Initialize first thread
         if (frontier.isEmpty()) {
-            frontier = new Stack<>();
-            predecessor = new HashMap<>();
             frontier.push(start);
             player = maze.newPlayer(start);
         }
@@ -123,8 +123,7 @@ public class ForkJoinSolver
                             // Fork new task and add necessary data
                             ForkJoinSolver task = new ForkJoinSolver(maze, forkAfter);
                             task.visited = this.visited;
-                            task.predecessor = new HashMap<>(predecessor);
-                            task.frontier = new Stack<>();
+                            task.predecessor = this.predecessor;
                             task.frontier.push(neighbor);
                             task.player = maze.newPlayer(neighbor);
                             tasks.add(task);

@@ -5,7 +5,7 @@ def generate_map(size):
     for _ in range(size):
         row = []
         for _ in range(size):
-            row.append(random.choices(['.', '#'], weights=[9, 1])[0])
+            row.append(random.choices(['.', '#'], weights=[7, 3])[0])
         map_grid.append(' '.join(row))
     return '\n'.join(map_grid)
 
