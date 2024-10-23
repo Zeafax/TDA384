@@ -29,8 +29,14 @@ initial_state(Nick, GUIAtom, ServerAtom) ->
 % Join channel
 handle(St, {join, Channel}) ->
     %% Send a join request to the server
-    genserver:request(St#client_st.server, {join_channel, St#client_st.nick, self(), Channel}),
-    {reply, ok, St};
+    Result = genserver:request(St#client_st.server, {join_channel, St#client_st.nick, self(), Channel}),
+    case Result of
+        ok ->
+            {reply, ok, St};
+        failed -> 
+            {reply, {error, user_already_joined, "You are already in the channel"}, St}
+    end;
+   
 
 % Leave channel
 handle(St, {leave, Channel}) ->

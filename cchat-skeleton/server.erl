@@ -30,7 +30,7 @@ handle(St, {join_channel, Nick, ClientID, Channel}) ->
                 case lists:member(Nick, Nicks) of % Check if the user is already in the channel
                     true ->
                         io:format("User is already in the channel~n"),
-                        {reply, {error, user_already_joined, "You are already in the channel"}, St};
+                        {reply, failed, St};
                     false ->
                         NewNicks = lists:append(Nicks, [Nick]), % Add the user to the channel
                         NewChannels = maps:put(Channel, NewNicks, St#server_st.channels), % Update the channels map
@@ -81,7 +81,7 @@ handle(St, {handle_message, Nick, Channel, Msg}) ->
                         ClientPid = maps:get(NickInChannel, St#server_st.clients), % Get the client's Pid
                         io:format("Message sent to ~p~n", [ClientPid]), 
                         spawn(fun() -> genserver:request(ClientPid, {message_receive, Channel, Nick, Msg}) end) % Send the message, spawn a new process for cuncurrency
-                    end, Nicks),
+                    end, lists:delete(Nick,Nicks)),
                     {reply, ok, St};
                 false ->
                     {reply, {error, user_not_joined, "You are not in the channel"}, St}
