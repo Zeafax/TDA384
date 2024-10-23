@@ -1,6 +1,6 @@
 all: *.erl lib/*.erl
 	make -C lib
-	erl -compile *.erl lib/*.erl
+	erl -make
 
 clean:
 	rm -f *.beam *.dump

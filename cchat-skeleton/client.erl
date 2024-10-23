@@ -6,7 +6,8 @@
 -record(client_st, {
     gui, % atom of the GUI process
     nick, % nick/username of the client
-    server % atom of the chat server
+    server, % atom of the chat server
+    channels % list of channels client is connected to 
 }).
 
 % Return an initial state record. This is called from GUI.
@@ -27,34 +28,77 @@ initial_state(Nick, GUIAtom, ServerAtom) ->
 %   - NewState is the updated state of the client
 
 % Join channel
+
+
 handle(St, {join, Channel}) ->
-    %% Send a join request to the server
-    Result = genserver:request(St#client_st.server, {join_channel, St#client_st.nick, self(), Channel}),
-    case Result of
-        ok ->
-            {reply, ok, St};
-        failed -> 
-            {reply, {error, user_already_joined, "You are already in the channel"}, St}
+    % TODO: Implement this function
+    case lists:member(St#client_st.server,registered()) of
+        false->
+            {reply, {error, server_not_reached, "server not reached"}, St};
+        true ->
+    try 
+        Result = genserver:request(St#client_st.server, {join, Channel, self(), St#client_st.nick}),
+        case Result of 
+            joined ->
+                %genserver:request(list_to_atom(Channel), {handle_message, self() ,St#client_st.nick, Channel, "* Joined the channel"}),
+                {reply, ok, St};
+            failed -> {reply, {error, user_already_joined, "Already in channel"}, St}
+        end
+    catch
+        throw:timeout_error ->{reply, {error, server_not_reached, "server not reached"}, St}
+    end
     end;
-   
+
 
 % Leave channel
 handle(St, {leave, Channel}) ->
-    %% Send a leave request to the server
-    genserver:request(St#client_st.server, {leave_channel, St#client_st.nick, Channel}),
-    {reply, ok, St};
+    % TODO: Implement this function
+    case lists:member(list_to_atom(Channel),registered()) of
+        false->
+            {reply, {error, server_not_reached, "server channel not reached"}, St};
+        true ->
+    case genserver:request(list_to_atom(Channel), {leave, self()}) of
+        ok ->
+            {reply, ok, St};
+        failed ->
+            {reply, {error, user_not_joined, "user not joined"}, St}
+    end
+    end;
+
 
 % Sending message (from GUI, to channel)
 handle(St, {message_send, Channel, Msg}) ->
-    %% Forward the message to the server
-    genserver:request(St#client_st.server, {handle_message, St#client_st.nick, Channel, Msg}),
-    {reply, ok, St};
+    case lists:member(list_to_atom(Channel),registered()) of
+        false->
+            {reply, {error, server_not_reached, "server channel not reached"}, St};
+        true ->
+    try
+        case genserver:request(list_to_atom(Channel), {handle_message, self() ,St#client_st.nick, Channel, Msg}) of
+            ok->
+                {reply, ok, St};
+            failed ->
+                {reply, {error, user_not_joined, "user not joined"}, St}
+        end
+    catch
+        throw:timeout_error ->{reply, {error, server_not_reached, "server channel not reached"}, St}
+    end
+    end;
 
 % This case is only relevant for the distinction assignment!
 % Change nick (no check, local only)
-handle({nick, NewNick}, St) ->
-    %% TODO
-    {reply, ok, St};
+handle(St, {nick, NewNick}) ->
+    case lists:member(St#client_st.server,registered()) of
+        false->
+            {reply, {error, server_not_reached, "server not reached"}, St};
+        true ->
+    Result = genserver:request(St#client_st.server, {nick,St#client_st.nick , NewNick}),
+    case Result of
+        ok -> 
+            {reply, ok, St#client_st{nick = NewNick}} ;
+        failed ->
+            {reply, {error, nick_taken, "Nick not avalible"}, St}
+    end
+    end;
 
 % ---------------------------------------------------------------------------
 % The cases below do not need to be changed...
@@ -76,4 +120,4 @@ handle(St, quit) ->
 
 % Catch-all for any unhandled requests
 handle(St, Data) ->
-    {reply, {error, not_implemented, "Client does not handle this command"}, St} .
+    {reply, {error, not_implemented, "Client does not handle this command"}, St}.
