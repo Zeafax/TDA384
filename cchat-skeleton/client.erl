@@ -6,8 +6,7 @@
 -record(client_st, {
     gui, % atom of the GUI process
     nick, % nick/username of the client
-    server, % atom of the chat server
-    channels % list of channels client is connected to 
+    server % atom of the chat server
 }).
 
 % Return an initial state record. This is called from GUI.
@@ -28,19 +27,15 @@ initial_state(Nick, GUIAtom, ServerAtom) ->
 %   - NewState is the updated state of the client
 
 % Join channel
-
-
 handle(St, {join, Channel}) ->
-    % TODO: Implement this function
-    case lists:member(St#client_st.server,registered()) of
+    case lists:member(St#client_st.server,registered()) of % check so that the server is registered
         false->
             {reply, {error, server_not_reached, "server not reached"}, St};
         true ->
     try 
-        Result = genserver:request(St#client_st.server, {join, Channel, self(), St#client_st.nick}),
-        case Result of 
+        case genserver:request(St#client_st.server, {join, Channel, self(), St#client_st.nick}) of % send join request to server
             joined ->
-                %genserver:request(list_to_atom(Channel), {handle_message, self() ,St#client_st.nick, Channel, "* Joined the channel"}),
+                %genserver:request(list_to_atom(Channel), {handle_message, self() ,St#client_st.nick, Channel, "* Joined the channel"}), % optional join message (breaks run_tests)
                 {reply, ok, St};
             failed -> {reply, {error, user_already_joined, "Already in channel"}, St}
         end
@@ -52,30 +47,29 @@ handle(St, {join, Channel}) ->
 
 % Leave channel
 handle(St, {leave, Channel}) ->
-    % TODO: Implement this function
-    case lists:member(list_to_atom(Channel),registered()) of
+    case lists:member(list_to_atom(Channel),registered()) of % check so that the Channel is registered
         false->
-            {reply, {error, server_not_reached, "server channel not reached"}, St};
+            {reply, {error, server_not_reached, "server channel not reached"}, St}; 
         true ->
-    case genserver:request(list_to_atom(Channel), {leave, self()}) of
+    case genserver:request(list_to_atom(Channel), {leave, self()}) of % send leave request to server
         ok ->
-            {reply, ok, St};
+            {reply, ok, St}; % leave successful
         failed ->
-            {reply, {error, user_not_joined, "user not joined"}, St}
+            {reply, {error, user_not_joined, "user not joined"}, St} 
     end
     end;
 
 
 % Sending message (from GUI, to channel)
 handle(St, {message_send, Channel, Msg}) ->
-    case lists:member(list_to_atom(Channel),registered()) of
+    case lists:member(list_to_atom(Channel),registered()) of % check so that the Channel is registered
         false->
             {reply, {error, server_not_reached, "server channel not reached"}, St};
         true ->
     try
-        case genserver:request(list_to_atom(Channel), {handle_message, self() ,St#client_st.nick, Channel, Msg}) of
+        case genserver:request(list_to_atom(Channel), {handle_message, self() ,St#client_st.nick, Channel, Msg}) of % send message request to Channel
             ok->
-                {reply, ok, St};
+                {reply, ok, St}; % sent successfully
             failed ->
                 {reply, {error, user_not_joined, "user not joined"}, St}
         end
@@ -84,17 +78,14 @@ handle(St, {message_send, Channel, Msg}) ->
     end
     end;
 
-% This case is only relevant for the distinction assignment!
-% Change nick (no check, local only)
 handle(St, {nick, NewNick}) ->
-    case lists:member(St#client_st.server,registered()) of
+    case lists:member(St#client_st.server,registered()) of  % check so that the server is registered
         false->
             {reply, {error, server_not_reached, "server not reached"}, St};
         true ->
-    Result = genserver:request(St#client_st.server, {nick,St#client_st.nick , NewNick}),
-    case Result of
+    case genserver:request(St#client_st.server, {nick,St#client_st.nick , NewNick}) of % send new nick request
         ok -> 
-            {reply, ok, St#client_st{nick = NewNick}} ;
+            {reply, ok, St#client_st{nick = NewNick}} ; % if server has nick avalivle -> client change nick
         failed ->
             {reply, {error, nick_taken, "Nick not avalible"}, St}
     end
